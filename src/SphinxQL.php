@@ -8,6 +8,13 @@ namespace Foolz\SphinxQL;
  */
 class SphinxQL
 {
+    
+    const SUBQUERY_IN_SELECT    = 'select';
+    
+    const SUBQUERY_IN_WHERE     = 'where';    
+    
+    const SUBQUERY_IN_MATCH     = 'match';       
+    
     /**
      * The connection for all SphinxQL objects
      *
@@ -155,6 +162,13 @@ class SphinxQL
      * @var null|\Foolz\SphinxQL\SphinxQL
      */
     protected $queue_prev = null;
+    
+    /**
+     * Array with subquery that can by set in query beafore WHERE
+     * @var array
+     */
+    protected $subquery = array();
+    
 
     /**
      * Ready for use queries
@@ -415,6 +429,12 @@ class SphinxQL
 
         $this->getConnection()->query($query);
     }
+    
+    
+    public function setSubquery($value, $type = self::SUBQUERY_IN_WHERE)
+    {
+        $this->subquery[$type][] = $value;
+    }
 
     /**
      * Begins transaction
@@ -594,7 +614,7 @@ class SphinxQL
     {
         $query = '';
 
-        if ( ! empty($this->match)) {
+        if ( ! empty($this->match) || isset($this->subquery[self::SUBQUERY_IN_MATCH])) {
             $query .= 'WHERE MATCH(';
 
             $matched = array();
@@ -617,8 +637,14 @@ class SphinxQL
 
                 $matched[] = '('.$pre.')';
             }
+                    
+            if (isset($this->subquery[self::SUBQUERY_IN_MATCH])) {
+                foreach ($this->subquery[self::SUBQUERY_IN_MATCH] as $value) {
+                    $matched[] = $value;
+                }
+            }
 
-            $matched = implode(' ', $matched);
+            $matched = implode(' ', $matched);    
             $query .= $this->getConnection()->escape(trim($matched)).') ';
         }
         return $query;
@@ -635,7 +661,8 @@ class SphinxQL
     {
         $query = '';
 
-        if (empty($this->match) && ! empty($this->where)) {
+        if ( (empty($this->match) && ! empty($this->where)) 
+                || ( empty($this->where) && empty($this->match) && !empty($this->subquery[self::SUBQUERY_IN_WHERE]) ) ) {
             $query .= 'WHERE ';
         }
 
@@ -683,7 +710,18 @@ class SphinxQL
                 }
             }
         }
-
+        
+        if (!empty($this->subquery[self::SUBQUERY_IN_WHERE])) {
+            $counter = 0;
+            foreach ($this->subquery[self::SUBQUERY_IN_WHERE] as $value) {
+                if ($counter > 0 || !empty($this->where) || !empty($this->match) ) {
+                    $query .= ' AND ';
+                }
+                $query .= '  ('.$value.') ';
+                $counter++;
+            }
+        }
+        
         return $query;
     }
 
@@ -705,7 +743,11 @@ class SphinxQL
                 $query .= '* ';
             }
         }
-
+        
+        if (!empty($this->subquery[self::SUBQUERY_IN_SELECT])) {
+            $query .= ', ' . implode(', ', $this->subquery[self::SUBQUERY_IN_SELECT]) . ' ';
+        }
+        
         if ( ! empty($this->from)) {
             $query .= 'FROM '.implode(', ', $this->getConnection()->quoteIdentifierArr($this->from)).' ';
         }
@@ -1062,7 +1104,7 @@ class SphinxQL
 
         return $this;
     }
-
+    
     /**
      * OR WHERE - at this time (Sphinx 2.0.2) it's not available
      *
