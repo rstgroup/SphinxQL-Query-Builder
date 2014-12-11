@@ -8,12 +8,26 @@ namespace Foolz\SphinxQL;
  */
 class SphinxQL
 {
-    
+    /**
+     * constant to insert subqueries in SELECET statement
+     */
     const SUBQUERY_IN_SELECT    = 'select';
     
+    /**
+     * constant to insert subqueries in WHERE statement
+     */
     const SUBQUERY_IN_WHERE     = 'where';    
     
+    /**
+     * constant to insert subqueries in MATCH statement
+     */
     const SUBQUERY_IN_MATCH     = 'match';       
+    
+    /**
+     * constant defines encoding type in mb_strtolower function
+     */
+    const LOWERCASE_ENCODING    = 'UTF-8';
+    
     
     /**
      * The connection for all SphinxQL objects
@@ -1367,7 +1381,7 @@ class SphinxQL
         $from = array('\\', '(', ')', '|', '-', '!', '@', '~', '"', '&', '/', '^', '$', '=');
         $to = array('\\\\', '\(', '\)', '\|', '\-', '\!', '\@', '\~', '\"', '\&', '\/', '\^', '\$', '\=');
 
-        return mb_strtolower(str_replace($from, $to, $string));
+        return mb_strtolower(str_replace($from, $to, $string), self::LOWERCASE_ENCODING);
     }
 
     /**
@@ -1411,7 +1425,7 @@ class SphinxQL
             "'([^\s]+)-([^\s]*)'" => "\"\\1\-\\2\""
         );
 
-        $string = mb_strtolower(preg_replace(array_keys($from_to_preg), array_values($from_to_preg), $string));
+        $string = mb_strtolower(preg_replace(array_keys($from_to_preg), array_values($from_to_preg), $string), self::LOWERCASE_ENCODING);
 
         return $string;
     }
